@@ -131,7 +131,7 @@ public class KafkaRecordReader implements RecordReader<Text, AvroGenericRecordWr
       }
       buf = msgs.iterator();
       LOGGER.info("Fetched " + msgs.size() + " messages" + " from topic " + topic + " partitionId " + partitionId
-              + " group.id" + split.getGroupId());
+              + " group.id " + split.getGroupId());
       return buf.hasNext();
     }
   }
@@ -199,8 +199,11 @@ public class KafkaRecordReader implements RecordReader<Text, AvroGenericRecordWr
       if(msg.message() == null) {
         return false;
       }
-
+      LOGGER.debug(value.toString());
       KafkaAvroEncoder.encode(msg, topicAndPartition, value);
+      if(value.getRecord() == null ) {
+        throw new NullPointerException("record is missing");
+      }
       return true;
     }
     else {
