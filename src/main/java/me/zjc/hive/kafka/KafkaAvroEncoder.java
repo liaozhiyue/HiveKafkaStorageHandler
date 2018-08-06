@@ -9,6 +9,8 @@ import org.apache.hadoop.hive.serde2.avro.AvroGenericRecordWritable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.UnsupportedEncodingException;
+import java.nio.ByteBuffer;
 import java.rmi.server.UID;
 
 import static me.zjc.hive.kafka.avro.StaticKafkaMsgSchema.schema;
@@ -35,10 +37,23 @@ public class KafkaAvroEncoder {
         record.put("topic", tp.topic());
         record.put("partitionId", tp.partition());
         record.put("offset", msg.offset());
-        if( msg.message().key() != null) {
-            record.put("msgKey", new String(msg.message().key().array()));
+
+        ByteBuffer key = msg.message().key();
+        byte[] msgKey = new byte[key.limit()];
+        key.get(msgKey);
+
+        ByteBuffer payload = msg.message().payload();
+        final byte[] msgValue = new byte[payload.limit()];
+        payload.get(msgValue);
+
+        try {
+            if( msg.message().key() != null) {
+                record.put("msgKey", new String(msgKey, "UTF-8"));
+            }
+            record.put("msgValue", new String(msgValue, "UTF-8"));
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
         }
-        record.put("msgValue", msg.message().payload().array());
         LOGGER.debug("Generated GenericRecord from topic {} partitionId {} offset {}",
                 tp.topic(),
                 tp.partition(),
@@ -47,6 +62,5 @@ public class KafkaAvroEncoder {
         avroWritable.setRecord(record);
         avroWritable.setFileSchema(schema());
         avroWritable.setRecordReaderID(RECORD_READER_ID);
-
     }
 }

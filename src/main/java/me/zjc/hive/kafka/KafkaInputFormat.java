@@ -59,8 +59,7 @@ public class KafkaInputFormat implements InputFormat<Text, AvroGenericRecordWrit
             List<TopicMetadata> tm = response.topicsMetadata();
             for (TopicMetadata t : tm) {
                 if( t.errorCode() != ErrorMapping.NoError() ) {
-                    throw new IOException("Topic " + topic
-                            + " exception " + ErrorMapping.exceptionFor(t.errorCode()));
+                    throw new IOException("Topic " + topic + " exception " + ErrorMapping.exceptionFor(t.errorCode()));
                 }
                 for (PartitionMetadata p : t.partitionsMetadata()) {
                     int partitionId = p.partitionId();
@@ -109,6 +108,7 @@ public class KafkaInputFormat implements InputFormat<Text, AvroGenericRecordWrit
                     );
                     OffsetMetadataAndError ome = or.offsets().get(tp);
                     long lastOffset = ome.offset();
+                    LOGGER.debug("group.id {} last read offset {} ", groupId, lastOffset);
                     // Reset offset
                     if(lastOffset < 0 || lastOffset > latestOffset || lastOffset < earliestOffset ) {
                         LOGGER.warn("Offset out of bound topic " + topic + " partitionId " + partitionId

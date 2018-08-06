@@ -40,6 +40,9 @@ public class KafkaBackedTableProperties {
     if(! tableProperties.containsKey(KAFKA_BOOTSTRAP_SERVERS )) {
       throw new RuntimeException("Kafka bootstrap.servers is required");
     }
+    if(! tableProperties.containsKey(KAFKA_GROUP_ID) ) {
+      throw new RuntimeException("Consumer group.id is required");
+    }
     if( tableProperties.containsKey(KAFKA_FETCH_SIZE) && ! KafkaUtils.isNumeric(tableProperties.getProperty(KAFKA_FETCH_SIZE))) {
       throw new RuntimeException("Fetch size must be numeric");
     }
@@ -64,12 +67,9 @@ public class KafkaBackedTableProperties {
             ? tableProperties.getProperty(KAFKA_AUTO_OFFSET_RESET)
             : KAFKA_OFFSET_EARLIEST);
 
-    // Set group.id, default to table name plus currentMillis
-    jobProperties.put(KAFKA_GROUP_ID,
-            tableProperties.containsKey(KAFKA_GROUP_ID)
-            ? tableProperties.getProperty(KAFKA_GROUP_ID)
-            : tableDesc.getTableName() + System.currentTimeMillis()
-          );
+    // Set group.id
+    jobProperties.put(KAFKA_GROUP_ID, tableProperties.getProperty(KAFKA_GROUP_ID));
+
     // Set fetch size in each message pull request
     jobProperties.put(KAFKA_FETCH_SIZE,
             tableProperties.containsKey(KAFKA_FETCH_SIZE)

@@ -154,6 +154,7 @@ public class KafkaRecordReader implements RecordReader<Text, AvroGenericRecordWr
               DefaultClientId(),
               CurrentVersion())
       );
+      LOGGER.debug("Committed offset {} in {}", offset, topicAndPartition);
     }
     return msg;
   }
@@ -201,7 +202,7 @@ public class KafkaRecordReader implements RecordReader<Text, AvroGenericRecordWr
       }
       LOGGER.debug(value.toString());
       KafkaAvroEncoder.encode(msg, topicAndPartition, value);
-      if(value.getRecord() == null ) {
+      if (value.getRecord() == null && msg.message() != null && msg.message().payload() != null) {
         throw new NullPointerException("record is missing");
       }
       return true;
