@@ -52,7 +52,7 @@ public class KafkaAvroEncoder {
             }
             record.put("msgValue", new String(msgValue, "UTF-8"));
         } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
+            LOGGER.error(e.getMessage());
         }
         LOGGER.debug("Generated GenericRecord from topic {} partitionId {} offset {}",
                 tp.topic(),

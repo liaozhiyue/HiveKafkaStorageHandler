@@ -18,10 +18,10 @@ public class KafkaInputFormatTest {
     public void getInputSplitTest() throws IOException {
         KafkaInputFormat inputFormat = new KafkaInputFormat();
         JobConf jobConf = new JobConf();
-        jobConf.set(KAFKA_BOOTSTRAP_SERVERS, "10.0.41.132:9092");
-        jobConf.set(KAFKA_TOPIC, "data-http-all-test");
+        jobConf.set(KAFKA_BOOTSTRAP_SERVERS, "192.168.1.1:9092");
+        jobConf.set(KAFKA_TOPIC, "a-kafka-topic");
         jobConf.set(KAFKA_GROUP_ID, "kafka-storage-handler-test-1");
-        jobConf.set(KAFKA_FETCH_SIZE, "2");
+        jobConf.set(KAFKA_FETCH_SIZE, "10000");
 
 
         InputSplit[] splits = inputFormat.getSplits(jobConf, 1);

@@ -8,5 +8,3 @@ release.properties
 *.iml
 /hive-kafka.iml
 /.idea/
-/src/test/me/zjc/hive/kafka/KafkaRecordReaderTest.java
-/src/test/me/zjc/hive/kafka/KafkaInputFormatTest.java
