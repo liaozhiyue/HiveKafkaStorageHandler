@@ -38,9 +38,7 @@ public class KafkaAvroEncoder {
         record.put("partitionId", tp.partition());
         record.put("offset", msg.offset());
 
-        ByteBuffer key = msg.message().key();
-        byte[] msgKey = new byte[key.limit()];
-        key.get(msgKey);
+
 
         ByteBuffer payload = msg.message().payload();
         final byte[] msgValue = new byte[payload.limit()];
@@ -48,6 +46,9 @@ public class KafkaAvroEncoder {
 
         try {
             if( msg.message().key() != null) {
+                ByteBuffer key = msg.message().key();
+                byte[] msgKey = new byte[key.limit()];
+                key.get(msgKey);
                 record.put("msgKey", new String(msgKey, "UTF-8"));
             }
             record.put("msgValue", new String(msgValue, "UTF-8"));

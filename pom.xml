@@ -26,6 +26,7 @@
       <artifactId>hive-metastore</artifactId>
       <version>${hive.version}</version>
     </dependency>
+
     <dependency>
       <groupId>org.apache.hive</groupId>
       <artifactId>hive-exec</artifactId>
@@ -63,15 +64,9 @@
         <groupId>junit</groupId>
         <artifactId>junit</artifactId>
         <version>4.11</version>
+        <scope>test</scope>
     </dependency>
   </dependencies>
-
-  <repositories>
-    <repository>
-      <id>cloudera</id>
-      <url>https://repository.cloudera.com/artifactory/cloudera-repos/</url>
-    </repository>
-  </repositories>
 
   <build>
     <plugins>
@@ -85,6 +80,8 @@
           <target>1.7</target>
         </configuration>
       </plugin>
+
+
     </plugins>
 
   </build>

@@ -10,8 +10,9 @@ import kafka.common.TopicAndPartition;
 import kafka.javaapi.*;
 import kafka.javaapi.consumer.SimpleConsumer;
 
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.serde2.avro.AvroGenericRecordWritable;
-import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapred.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,7 +28,7 @@ import static me.zjc.hive.kafka.KafkaBackedTableProperties.*;
  * Input format of Kafka Storage Handler.
  * Hive's AvroSerDe require's an AvroGenericRecordWritable.
  */
-public class KafkaInputFormat implements InputFormat<Text, AvroGenericRecordWritable> {
+public class KafkaInputFormat implements InputFormat<NullWritable, AvroGenericRecordWritable> {
 	private static Logger LOGGER = LoggerFactory.getLogger(KafkaInputFormat.class);
 	public static int CONSUMER_CORRELATION_ID = 1;
 	public static final String MAPRED_MAP_TASKS = "mapred.map.tasks";
@@ -121,6 +122,7 @@ public class KafkaInputFormat implements InputFormat<Text, AvroGenericRecordWrit
                             lastOffset = latestOffset;
                         }
                     }
+
                     KafkaSplit split = new KafkaSplit(p.leader().connectionString(),
                             p.replicas(),
                             topic,
@@ -128,7 +130,8 @@ public class KafkaInputFormat implements InputFormat<Text, AvroGenericRecordWrit
                             groupId,
                             earliestOffset,
                             latestOffset,
-                            lastOffset
+                            lastOffset,
+                            new Path( jobConf.get(KafkaBackedTableProperties.TABLE_LOCATION))
                     );
                     LOGGER.info("Created KafkaSplit " + split.toString());
                     splits.add(split);

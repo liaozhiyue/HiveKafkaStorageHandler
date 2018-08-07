@@ -1,7 +1,9 @@
 package me.zjc.hive.kafka;
 
 import kafka.cluster.BrokerEndPoint;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputSplit;
 
 import java.io.DataInput;
@@ -13,9 +15,11 @@ import java.util.List;
 
 /**
  * Metadata of a topic partition and groupId's last read offset
+ * KafkaSplit must extend from FileInputSplit and implement getPath API.
+ * KafkaSplit’s Path must match path of Hive table on which split is running.
  * @author Zhu Jiachuan
  */
-public class KafkaSplit implements InputSplit {
+public class KafkaSplit extends FileSplit {
     private String leaderUri;
     private List<String> replicaURI;
     private String topic;
@@ -25,6 +29,9 @@ public class KafkaSplit implements InputSplit {
     private String groupId;
     private long lastReadOffset;
 
+    public KafkaSplit() {
+    }
+
     public KafkaSplit(String leaderUri,
                       List<BrokerEndPoint> replicaEndPoint,
                       String topic,
@@ -32,7 +39,10 @@ public class KafkaSplit implements InputSplit {
                       String groupId,
                       long earliestOffset,
                       long latestOffset,
-                      long lastReadOffset) {
+                      long lastReadOffset,
+                      Path path) {
+        super(path, 0, 0, new String[0]);
+
         this.leaderUri = leaderUri;
         this.setReplicaURI(replicaEndPoint);
         this.topic = topic;
@@ -48,19 +58,28 @@ public class KafkaSplit implements InputSplit {
     }
 
     @Override
-    public long getLength() throws IOException {
+    public long getLength() {
         return latestOffset - earliestOffset;
     }
 
+    /**
+     *
+     * Refer to https://github.com/elastic/elasticsearch-hadoop/issues/59
+     * @return
+     * @throws IOException
+     */
     @Override
     public String[] getLocations() throws IOException {
-        return new String[0];
+        String[] path = new String[1];
+        path[0] = leaderUri;
+        return path;
     }
 
 
 
     @Override
     public void write(DataOutput out) throws IOException {
+        super.write(out);
         Text.writeString(out, leaderUri);
         String str = "";
         for (String uri : replicaURI) {
@@ -77,6 +96,7 @@ public class KafkaSplit implements InputSplit {
 
     @Override
     public void readFields(DataInput in) throws IOException {
+        super.readFields(in);
         this.leaderUri = Text.readString(in);
         String str = Text.readString(in);
         this.replicaURI = Arrays.asList(str.split(","));

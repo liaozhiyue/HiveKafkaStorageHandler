@@ -27,6 +27,8 @@ public class KafkaBackedTableProperties {
   public static final String KAFKA_FETCH_SIZE = "kafka.fetch.size";
   public static final String DEFAULT_FETCH_SIZE = "1048576";
 
+  public static final String TABLE_LOCATION = "location";
+
   /*
    * This method initializes properties of the external table and populates
    * the jobProperties map with them so that they can be used throughout the job.
@@ -75,6 +77,8 @@ public class KafkaBackedTableProperties {
             tableProperties.containsKey(KAFKA_FETCH_SIZE)
             ? tableProperties.getProperty(KAFKA_FETCH_SIZE)
             : DEFAULT_FETCH_SIZE);
+    // Set table location
+    jobProperties.put(TABLE_LOCATION, tableProperties.getProperty(TABLE_LOCATION));
 
   }
 }
