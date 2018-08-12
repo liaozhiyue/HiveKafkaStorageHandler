@@ -1,5 +1,9 @@
 # HiveKafkaStorageHandler
 
+## Dependencies
+- Kafka 0.10.x
+- Java 1.7
+
 ## Example
 1. Put following jars in HIVE_AUX_JARS_PATH
 - kafka_2.11-0.10.1.1.jar
