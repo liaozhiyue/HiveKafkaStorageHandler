@@ -38,8 +38,6 @@ public class KafkaAvroEncoder {
         record.put("partitionId", tp.partition());
         record.put("offset", msg.offset());
 
-
-
         ByteBuffer payload = msg.message().payload();
         final byte[] msgValue = new byte[payload.limit()];
         payload.get(msgValue);

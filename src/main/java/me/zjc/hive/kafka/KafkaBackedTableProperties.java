@@ -10,11 +10,8 @@ import java.util.Properties;
 public class KafkaBackedTableProperties {
   private static final Logger LOGGER = LoggerFactory.getLogger(KafkaBackedTableProperties.class);
   public static final String KAFKA_BOOTSTRAP_SERVERS = "bootstrap.servers";
+  public static final String OFFSET_STR = "group.id.offset";
 
-
-  public static final String KAFKA_KEY_DESERIALIZER = "key.deserializer";
-  public static final String KAFKA_VALUE_DESERIALIZER = "value.deserializer";
-  public static final String STRING_DESERIALIZER = "org.apache.kafka.common.serialization.StringDeserializer";
 
   public static final String KAFKA_ENABLE_AUTO_COMMIT = "enable.auto.commit";
 
@@ -56,9 +53,6 @@ public class KafkaBackedTableProperties {
     LOGGER.debug("Bootstrap.servers : " + bootstrapServers);
     jobProperties.put(KAFKA_BOOTSTRAP_SERVERS, bootstrapServers);
 
-    // Set key and value deserializers, default to StringDeserializer
-    jobProperties.put(KAFKA_KEY_DESERIALIZER, STRING_DESERIALIZER);
-    jobProperties.put(KAFKA_VALUE_DESERIALIZER, STRING_DESERIALIZER);
 
     // Disable automatic offset commit
     jobProperties.put(KAFKA_ENABLE_AUTO_COMMIT, "false");
@@ -79,6 +73,11 @@ public class KafkaBackedTableProperties {
             : DEFAULT_FETCH_SIZE);
     // Set table location
     jobProperties.put(TABLE_LOCATION, tableProperties.getProperty(TABLE_LOCATION));
+
+    //Set offset
+    if( tableProperties.containsKey(OFFSET_STR)) {
+      jobProperties.put(OFFSET_STR, tableProperties.getProperty(OFFSET_STR));
+    }
 
   }
 }

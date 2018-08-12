@@ -31,7 +31,6 @@ import static me.zjc.hive.kafka.KafkaBackedTableProperties.*;
 public class KafkaInputFormat implements InputFormat<NullWritable, AvroGenericRecordWritable> {
 	private static Logger LOGGER = LoggerFactory.getLogger(KafkaInputFormat.class);
 	public static int CONSUMER_CORRELATION_ID = 1;
-	public static final String MAPRED_MAP_TASKS = "mapred.map.tasks";
 
 	@Override
 	public RecordReader getRecordReader(InputSplit split, JobConf conf, Reporter reporter)
@@ -55,7 +54,22 @@ public class KafkaInputFormat implements InputFormat<NullWritable, AvroGenericRe
 		final SimpleConsumer consumer = KafkaUtils.createSimpleConsumer(jobConf);
         final ArrayList<KafkaSplit> splits = new ArrayList<>();
 
+
 		try {
+		    // Parse manually specified offsets, should be of format partitionId:offset;partitionId:offset
+            Map<Integer, Long> manualOffsets = new HashMap<>();
+            final String offsetStr = jobConf.get(OFFSET_STR);
+            if( offsetStr != null) {
+                String[] offsets = offsetStr.split(";");
+                for (String offset : offsets) {
+                    String[] po = offset.split(":");
+                    if( po.length != 2) {
+                        throw new IllegalArgumentException("group.id offset string should be like partitionId:offset;partitionId:offset");
+                    }
+                    manualOffsets.put(Integer.parseInt(po[0]), Long.parseLong(po[1]));
+                }
+            }
+
             TopicMetadataResponse response = consumer.send(new TopicMetadataRequest(Arrays.asList(topic), CONSUMER_CORRELATION_ID));
             List<TopicMetadata> tm = response.topicsMetadata();
             for (TopicMetadata t : tm) {
@@ -100,26 +114,18 @@ public class KafkaInputFormat implements InputFormat<NullWritable, AvroGenericRe
                     }
                     long earliestOffset = er.offsets(topic, partitionId)[0];
 
-                    // Read given groupId's last offset. May not exist.
-                    OffsetFetchResponse or = leaderConsumer.fetchOffsets(new OffsetFetchRequest(groupId,
-                                    Arrays.asList(tp),
-                                    CONSUMER_CORRELATION_ID,
-                                    DefaultClientId()
-                            )
-                    );
-                    OffsetMetadataAndError ome = or.offsets().get(tp);
-                    long lastOffset = ome.offset();
-                    LOGGER.debug("group.id {} last read offset {} ", groupId, lastOffset);
+                    Long manualOffset = manualOffsets.get(partitionId);
+                    LOGGER.debug("group.id {} manual offset {} ", groupId, manualOffset);
                     // Reset offset
-                    if(lastOffset < 0 || lastOffset > latestOffset || lastOffset < earliestOffset ) {
+                    if(manualOffset == null || manualOffset > latestOffset || manualOffset < earliestOffset ) {
                         LOGGER.warn("Offset out of bound topic " + topic + " partitionId " + partitionId
                                 + " latestOffset " + latestOffset + " earliestOffset " + earliestOffset
-                                + " group.id " + groupId + " lastOffset " + lastOffset);
+                                + " group.id " + groupId + " lastOffset " + manualOffset);
                         if(offsetResetStrategy == null || offsetResetStrategy.equals(KAFKA_OFFSET_EARLIEST)) {
-                            lastOffset = earliestOffset;
+                            manualOffset = earliestOffset;
                         }
                         else {
-                            lastOffset = latestOffset;
+                            manualOffset = latestOffset;
                         }
                     }
 
@@ -130,7 +136,7 @@ public class KafkaInputFormat implements InputFormat<NullWritable, AvroGenericRe
                             groupId,
                             earliestOffset,
                             latestOffset,
-                            lastOffset,
+                            manualOffset,
                             new Path( jobConf.get(KafkaBackedTableProperties.TABLE_LOCATION))
                     );
                     LOGGER.info("Created KafkaSplit " + split.toString());

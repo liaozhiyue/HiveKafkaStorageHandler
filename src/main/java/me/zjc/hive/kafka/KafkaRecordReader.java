@@ -5,24 +5,21 @@ import java.util.*;
 
 import kafka.api.PartitionFetchInfo;
 import kafka.common.ErrorMapping;
-import kafka.common.OffsetAndMetadata;
 import kafka.common.TopicAndPartition;
 import kafka.javaapi.FetchRequest;
 import kafka.javaapi.FetchResponse;
-import kafka.javaapi.OffsetCommitRequest;
 import kafka.javaapi.PartitionMetadata;
 import kafka.javaapi.consumer.SimpleConsumer;
 import kafka.message.MessageAndOffset;
 
 import org.apache.hadoop.hive.serde2.avro.AvroGenericRecordWritable;
-import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapred.*;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static kafka.api.OffsetFetchRequest.DefaultClientId;
-import static kafka.api.OffsetRequest.CurrentVersion;
 
 import static me.zjc.hive.kafka.KafkaBackedTableProperties.DEFAULT_FETCH_SIZE;
 import static me.zjc.hive.kafka.KafkaInputFormat.CONSUMER_CORRELATION_ID;
@@ -31,7 +28,7 @@ import static me.zjc.hive.kafka.KafkaInputFormat.CONSUMER_CORRELATION_ID;
 /**
  * Refer to https://cwiki.apache.org/confluence/display/KAFKA/0.8.0+SimpleConsumer+Example
  */
-public class KafkaRecordReader implements RecordReader<Text, AvroGenericRecordWritable> {
+public class KafkaRecordReader implements RecordReader<NullWritable, AvroGenericRecordWritable> {
   private static Logger LOGGER = LoggerFactory.getLogger(KafkaRecordReader.class);
   private final KafkaSplit split;
   private final TopicAndPartition topicAndPartition;
@@ -41,9 +38,7 @@ public class KafkaRecordReader implements RecordReader<Text, AvroGenericRecordWr
 
   private Iterator<MessageAndOffset> buf;
   private long offset = -1;
-
-  private long totalBytes = 1;
-  private long readBytes = 0;
+  private long totalRecords = 1;
 
   /**
    * Record reader to fetch directly from Kafka
@@ -60,10 +55,15 @@ public class KafkaRecordReader implements RecordReader<Text, AvroGenericRecordWr
     this.consumer = KafkaUtils.createSimpleConsumer(this.split.getLeaderUri(), conf);
     this.offset = this.split.getLastReadOffset();
     this.topicAndPartition = new TopicAndPartition(this.split.getTopic(), this.split.getPartitionId());
+    this.totalRecords = this.split.getLatestOffset() - this.split.getLastReadOffset();
+
   }
 
   private boolean hasNext() {
-    if(buf == null || ! buf.hasNext()) {
+    if(offset > split.getLatestOffset()) {
+      return false;
+    }
+    else if(buf == null || ! buf.hasNext()) {
       return fetch();
     }
     else {
@@ -73,7 +73,7 @@ public class KafkaRecordReader implements RecordReader<Text, AvroGenericRecordWr
 
   /**
    * Fetches messages from Kafka.
-   * Number of messages are specified by kafka.fetch.size, defaults to 1024 * 1024.
+   * Number of messages are specified by kafka.fetch.size.
    * @return
    */
   private boolean fetch() {
@@ -145,23 +145,13 @@ public class KafkaRecordReader implements RecordReader<Text, AvroGenericRecordWr
     if(buf != null && buf.hasNext()) {
       msg = buf.next();
       offset ++;
-      OffsetAndMetadata om = OffsetAndMetadata.apply(offset);
-      Map<TopicAndPartition, OffsetAndMetadata> commitMap = new LinkedHashMap<>(1);
-      commitMap.put(topicAndPartition, om);
-      consumer.commitOffsets(new OffsetCommitRequest(split.getGroupId(),
-              commitMap,
-              CONSUMER_CORRELATION_ID,
-              DefaultClientId(),
-              CurrentVersion())
-      );
-      LOGGER.debug("Committed offset {} in {}", offset, topicAndPartition);
     }
     return msg;
   }
 
 
   @Override
-  public synchronized void close() throws IOException {
+  public void close() throws IOException {
     if (consumer != null) {
       consumer.close();
     }
@@ -169,38 +159,33 @@ public class KafkaRecordReader implements RecordReader<Text, AvroGenericRecordWr
 
   @Override
   public float getProgress() throws IOException {
-    if (getPos() == 0) {
-      return 0f;
-    }
-
-    if (getPos() >= totalBytes) {
+    if (offset >= this.split.getLatestOffset()) {
       return 1f;
     }
-    return (float) ((double) getPos() / totalBytes);
+    return (float) ((double) getPos() / this.totalRecords);
   }
 
 
   @Override
   public long getPos() throws IOException {
-      return readBytes;
+      return offset - split.getLastReadOffset();
   }
 
   /**
-   * Sets key and value. Message fetch and offset commitment are delegated to fetch() and getNext().
+   * Sets key and value. Message fetch is delegated to fetch() and getNext().
    * @param key Ignored
    * @param value where message metadata, key and value are written
    * @return
    * @throws IOException
    */
   @Override
-  public boolean next(Text key, AvroGenericRecordWritable value) throws IOException {
+  public boolean next(NullWritable key, AvroGenericRecordWritable value) throws IOException {
     // TODO Set readBytes and totalBytes properly.
     if(hasNext()) {
       MessageAndOffset msg = getNext();
       if(msg.message() == null) {
         return false;
       }
-      LOGGER.debug(value.toString());
       KafkaAvroEncoder.encode(msg, topicAndPartition, value);
       if (value.getRecord() == null && msg.message() != null && msg.message().payload() != null) {
         throw new NullPointerException("record is missing");
@@ -213,8 +198,8 @@ public class KafkaRecordReader implements RecordReader<Text, AvroGenericRecordWr
   }
 
   @Override
-  public Text createKey() {
-    return new Text();
+  public NullWritable createKey() {
+    return NullWritable.get();
   }
 
   @Override
